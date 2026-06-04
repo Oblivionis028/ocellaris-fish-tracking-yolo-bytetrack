@@ -1,0 +1,26 @@
+Final state-machine manual correction report
+================================================================================
+SRC: /mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/reconstruction_offset460/cleaned/trajectory_3d_cleaned_interpolated_smoothed.csv
+OUT: /mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected
+
+Confirmed correction rules:
+R1: global sample 186–193, all fish valid=0; swap process / unstable identity.
+R2: global sample 194–899, remap current fish_2→fish_1, fish_3→fish_2, fish_1→fish_3.
+R3: global sample 195–202, current fish_1 and current fish_3 valid=0; keep 194 and 203 as anchors.
+
+Counts:
+total direct rows: 2700
+R1 valid=0 rows: 24
+R2 remapped rows: 2118
+R3 bad-localization valid=0 rows: 16
+total valid=0 rows: 40
+total interpolated rows after smoothing: 40
+duplicate sample/fish keys: 0
+
+Output files:
+/mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_3d_state_machine_rules_applied.csv
+/mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_3d_state_machine_interpolated.csv
+/mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_3d_state_machine_interpolated_smoothed.csv
+/mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_3d_state_machine_smoothed.png
+/mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_xy_state_machine_smoothed.png
+/mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_z_time_state_machine_smoothed.png

@@ -1,0 +1,56 @@
+Final manual v1 trajectory QC
+================================================================================
+source: /mnt/e/pilot exp/dual_view_test_10min/mvp3d_9_10min/mvp3d_best30_9_00_9_30/manual_direct_edit/final_state_machine_corrected/trajectory_3d_state_machine_interpolated_smoothed.csv
+
+fish_1
+  points: 900
+  interpolated points: 8
+  interpolated ratio: 0.89%
+  X range: 0.0166 to 0.9456
+  Y range: 0.0230 to 0.9884
+  Z range: 0.0496 to 0.9302
+
+fish_2
+  points: 900
+  interpolated points: 16
+  interpolated ratio: 1.78%
+  X range: 0.2252 to 0.9355
+  Y range: 0.0177 to 0.9288
+  Z range: 0.0784 to 0.9297
+
+fish_3
+  points: 900
+  interpolated points: 16
+  interpolated ratio: 1.78%
+  X range: 0.0667 to 0.9691
+  Y range: 0.0054 to 0.9737
+  Z range: 0.0503 to 0.9234
+
+All fish combined
+  X range: 0.0166 to 0.9691
+  Y range: 0.0054 to 0.9884
+  Z range: 0.0496 to 0.9302
+
+fish_1 speed
+  mean: 0.2308
+  median: 0.1949
+  p95: 0.5729
+  max: 0.8700
+
+fish_2 speed
+  mean: 0.2065
+  median: 0.1781
+  p95: 0.4925
+  max: 0.6536
+
+fish_3 speed
+  mean: 0.2669
+  median: 0.2360
+  p95: 0.6143
+  max: 0.7626
+
+Inter-fish distance
+  mean distance mean: 0.4222
+  mean distance median: 0.4456
+  min distance mean: 0.1918
+  min distance min: 0.0633
