@@ -1,35 +1,35 @@
 # Ocellaris Fish Tracking with YOLO26s and ByteTrack
 
-YOLO26s-based `fish/reflection` detection and ByteTrack tracking pipeline for ocellaris clownfish behavior analysis.
+YOLO26s-based fish/reflection detection, multi-object tracking, and dual-view 3D trajectory reconstruction workflow for ocellaris clownfish behavior analysis.
 
 English | [简体中文](README.zh.md)
 
 ## Overview
 
-This project builds a computer-vision pipeline for TOP-view ocellaris clownfish videos.  
-The detection task is defined as a two-class problem:
+This project develops a computer-vision workflow for ocellaris clownfish behavior analysis in tank videos. The initial TOP-view detection task is defined as a two-class problem:
 
 - `fish`: real fish body
 - `reflection`: complete fish-like mirror image on the tank wall
 
-Only the `fish` class is used for ByteTrack multi-object tracking. This design reduces the influence of tank-wall reflections on trajectory extraction and downstream behavior analysis.
+Only the `fish` class is used for downstream tracking and trajectory analysis. This design reduces the influence of tank-wall reflections on trajectory extraction.
+
+The project has now progressed from 2D detection/tracking validation to a dual-view 3D trajectory MVP. A representative 30 s / 30 Hz segment has been reconstructed, manually reviewed, corrected, and converted into pilot behavior metrics.
 
 ## Current Status
 
-The project has completed multiple rounds of dataset construction, CVAT annotation correction, YOLO26s model iteration, and ByteTrack tracking evaluation.
+The current project status is:
 
-The current main working setup is:
-
-| Component | Choice |
+| Module | Current status |
 |---|---|
-| Detector | YOLO26s V6 |
-| Tracker | ByteTrack E2 |
-| Detection classes | `fish` / `reflection` |
-| Tracking class | `fish` only |
-| Current role | Main analysis candidate for 2D trajectory extraction |
+| TOP-view 2D detection/tracking | V6 + ByteTrack E2 evaluated on TOP 5 min video |
+| TOP dual-view scene adaptation | `TOP_yolo26s_v7_scene_adapt` completed |
+| LEFT dual-view scene adaptation | `LEFT_yolo26s_v1_scene_adapt` completed |
+| Dual-view synchronization | LEFT sample = TOP sample + 460 |
+| 3D reconstruction | 30 s / 30 Hz MVP completed |
+| Manual identity review | `final_manual_v1` completed |
+| Behavior metrics | Pilot speed, inter-fish distance, nearest-neighbor distance, group dispersion, vertical position, and 3D space-use metrics extracted |
 
-V6+E2 improves automatic tracking continuity compared with V5+E2, but manual inspection still found ID switches.  
-The current bottleneck has shifted from detection completeness to identity consistency during crossing and occlusion events.
+The current bottleneck is no longer only detection mAP. The main challenge is identity consistency when visually similar fish cross, overlap, or occlude each other. The current solution combines detection, dual-view geometry, trajectory QC, manual reprojection review, and post-processing instead of relying on ByteTrack ID alone.
 
 ## Pipeline
 
@@ -37,20 +37,139 @@ The current bottleneck has shifted from detection completeness to identity consi
 Video input
 → preprocessing
 → fish/reflection detection
-→ ByteTrack tracking
-→ trajectory CSV export
-→ behavior metrics
-→ future 3D reconstruction / social behavior modeling
+→ fish-only tracking / point extraction
+→ TOP/LEFT synchronization
+→ DLT calibration
+→ 3D triangulation
+→ identity review and correction
+→ interpolation and smoothing
+→ behavior metric extraction
+→ future GCN-based group behavior modeling
 ```
 
 ## Highlights
 
 - Two-class YOLO26s detection: `fish` and `reflection`
 - CVAT-assisted annotation correction through multiple dataset iterations
-- ByteTrack-based multi-object tracking for real fish only
-- V6 improves detection completeness and track continuity compared with V5+E2
-- Current bottleneck: ID switches during crossing, occlusion, and close interactions
-- Future direction: `identity_uncertain` labeling, tracklet stitching, and dual-view 3D trajectory reconstruction
+- ByteTrack-based fish-only tracking for 2D analysis
+- Scene-adapted TOP and LEFT detectors for dual-view videos
+- DLT-based 3D reconstruction using tank structural points
+- TOP/LEFT synchronization offset search
+- Manual fish_1 / fish_2 / fish_3 reprojection review
+- Pilot behavior metrics extracted from final 3D trajectories
+- Future direction: automatic QC, uncertainty labeling, tracklet correction, and GCN-based group behavior modeling
+
+## 2026-06-04 Update: Dual-view 3D Trajectory MVP
+
+A 30 s / 30 Hz dual-view 3D trajectory MVP was completed for a representative segment.
+
+### Segment
+
+| Item | Value |
+|---|---:|
+| Segment | 9:00-9:30 |
+| Frame rate | 30 Hz |
+| Frames | 900 |
+| Fish | 3 |
+| Total trajectory points | 2700 |
+| Final version | `final_manual_v1` |
+
+### Calibration and synchronization
+
+DLT calibration used 8 tank structural points.
+
+| View | Mean reprojection error |
+|---|---:|
+| TOP | 3.12 px |
+| LEFT | 5.12 px |
+
+TOP/LEFT temporal synchronization was corrected by offset scanning:
+
+```text
+LEFT_sample = TOP_sample + 460
+Offset = 15.333 s at 30 Hz
+```
+
+After offset correction:
+
+| Metric | Value |
+|---|---:|
+| Mean reprojection error | 4.64 px |
+| Median reprojection error | 2.83 px |
+
+### Manual identity correction
+
+A fish_1 / fish_2 / fish_3 reprojection review video was generated by projecting the 3D trajectories back to both TOP and LEFT views.
+
+Manual review identified one major identity-switch state around global sample 186-193, followed by a persistent label permutation. The final state-machine correction was:
+
+- R1: global sample 186-193. All fish were set invalid during the identity transition.
+- R2: global sample 194-899. Current fish_2 was remapped to final fish_1; current fish_3 was remapped to final fish_2; current fish_1 was remapped to final fish_3.
+- R3: global sample 195-202. Current fish_1 and current fish_3 were set invalid due to local TOP localization error. Samples 194 and 203 were kept as interpolation anchors.
+
+The corrected trajectory was interpolated and smoothed to generate `final_manual_v1`.
+
+### Final QC
+
+| Metric | Value |
+|---|---:|
+| QC status | pass |
+| Duration | 30.0 s |
+| Frames | 900 |
+| Interpolated points | 40 / 2700 |
+| Interpolated ratio | 1.48% |
+| X range | 0.0166-0.9691 |
+| Y range | 0.0054-0.9884 |
+| Z range | 0.0496-0.9302 |
+
+### Pilot behavior metrics
+
+| Metric | Value |
+|---|---:|
+| Group mean speed | 0.2348 |
+| Mean inter-fish distance | 0.4222 |
+| Mean nearest-neighbor distance | 0.2906 |
+| Mean group dispersion | 0.2507 |
+| Centroid mean Z | 0.4887 |
+| 3D bounding-box space-use volume | 0.8245 |
+
+These metrics show that the final reviewed 3D trajectories can be transformed into behavior-analysis features and can serve as pilot inputs for future graph-based group behavior modeling.
+
+## Result Preview
+
+3D trajectory:
+
+![3D trajectory](results/mvp3d_final_manual_v1/figures/trajectory_3d_final_manual_v1.png)
+
+XY trajectory:
+
+![XY trajectory](results/mvp3d_final_manual_v1/figures/trajectory_xy_final_manual_v1.png)
+
+Z over time:
+
+![Z over time](results/mvp3d_final_manual_v1/figures/trajectory_z_time_final_manual_v1.png)
+
+Speed over time:
+
+![Speed over time](results/mvp3d_final_manual_v1/figures/speed_time_final_manual_v1.png)
+
+Inter-fish distance over time:
+
+![Inter-fish distance over time](results/mvp3d_final_manual_v1/figures/inter_fish_distance_time_final_manual_v1.png)
+
+## Output Files
+
+This repository update includes lightweight result artifacts only:
+
+```text
+docs/progress/2026-06-04_mvp3d_final_manual_v1.md
+docs/mvp3d/final_manual_v1_behavior_metrics.md
+results/mvp3d_final_manual_v1/figures/
+results/mvp3d_final_manual_v1/metrics/
+results/mvp3d_final_manual_v1/qc/
+```
+
+Raw videos, review videos, model weights, training images, and full intermediate outputs are not released at this stage.
 
 ## Annotation Rules
 
@@ -70,9 +189,7 @@ Rules:
 
 ## Dataset Construction
 
-The dataset was built through frame extraction, YOLO-assisted pre-labeling, and manual correction in CVAT.
-
-Current dataset size:
+The TOP-view dataset was built through frame extraction, YOLO-assisted pre-labeling, and manual correction in CVAT.
 
 | Split | Images | Boxes |
 |---|---:|---:|
@@ -87,16 +204,16 @@ Major batches:
 | Initial dataset | `TOP_final.mp4` | train / val | Initial fish/reflection dataset |
 | `top2m` | `TOP_test_2min.mp4` | train | About 200 manually labeled images |
 | `top5m300` | `TOP_test_5min.mp4` | train | 300 model-prelabeled and manually corrected images |
-| `v5tr` | `TOP_final.mp4` 20:00–25:00 | train | 200 V5 training images |
-| `v5val` | `TOP_final.mp4` 10:00–15:00 | val | 100 V5 validation images |
-| `v6tr` | `TOP_final.mp4` 15:00–20:00 | train | 300 V6 training images |
-| `v6val` | `TOP_final.mp4` 05:00–10:00 | val | 100 V6 validation images |
+| `v5tr` | `TOP_final.mp4` 20:00-25:00 | train | 200 V5 training images |
+| `v5val` | `TOP_final.mp4` 10:00-15:00 | val | 100 V5 validation images |
+| `v6tr` | `TOP_final.mp4` 15:00-20:00 | train | 300 V6 training images |
+| `v6val` | `TOP_final.mp4` 05:00-10:00 | val | 100 V6 validation images |
 
 During V6 annotation correction, three main V5 pre-labeling issues were observed:
 
-- bounding boxes were generally slightly too large;
-- about 10 images had duplicate labels on a single fish;
-- about 5 images had missed fish in simple scenes.
+- Bounding boxes were generally slightly too large.
+- About 10 images had duplicate labels on a single fish.
+- About 5 images had missed fish in simple scenes.
 
 ## Model Iteration
 
@@ -107,6 +224,8 @@ During V6 annotation correction, three main V5 pre-labeling issues were observed
 | V4 | Added 300 corrected `TOP_test_5min` samples | Important intermediate model for pre-labeling |
 | V5 | Added `train200 + val100` and fine-tuned from V4 | Stable previous main detector |
 | V6 | Added `train300 + val100` and fine-tuned from V5 | Better fish localization and tracking continuity |
+| TOP_v7 | Scene-adapted TOP detector for dual-view video | Used for 3D MVP TOP point extraction |
+| LEFT_v1 | Scene-adapted LEFT fish-only detector | Used for 3D MVP LEFT point extraction |
 
 ## Detection Results
 
@@ -133,7 +252,13 @@ Per-class mAP@0.5:0.95:
 | fish | 0.602350 | 0.622142 | +0.019792 |
 | reflection | 0.707560 | 0.691919 | -0.015640 |
 
-Interpretation: V6 mainly improves real-fish localization, while precision and reflection performance are slightly lower.
+### TOP_v7 scene adaptation
+
+| Class | Precision | Recall | mAP@0.5 | mAP@0.5:0.95 |
+|---|---:|---:|---:|---:|
+| all | 0.984 | 0.899 | 0.967 | 0.718 |
+| fish | 0.994 | 0.937 | 0.990 | 0.825 |
+| reflection | 0.973 | 0.861 | 0.944 | 0.610 |
 
 ## Tracking Comparison
 
@@ -171,42 +296,59 @@ Conclusion:
 
 - V6+E2 improves detection completeness and track continuity.
 - V6+E2 greatly reduces fragmented IDs and short-lived IDs.
-- Manual inspection still found 4 ID switches.
-- Therefore, V6+E2 is a better next-stage analysis candidate, but identity preservation is not fully solved.
+- Manual inspection still found ID switches.
+- Therefore, ByteTrack IDs should be treated as auxiliary references, not final biological identities.
 
 ## Current Bottleneck
 
-The current bottleneck is no longer only detection mAP.  
-The main issue is identity consistency when visually similar fish cross, overlap, or occlude each other.
+The current bottleneck is identity consistency when visually similar fish cross, overlap, or occlude each other.
 
-Because the three ocellaris clownfish have highly similar appearances, appearance-based ReID is not used as the main identity-preservation strategy. The future direction is based on:
+Because the three ocellaris clownfish have highly similar appearances, appearance-based ReID is not used as the main identity-preservation strategy. The current direction is based on:
 
 - motion continuity;
+- dual-view geometric constraints;
+- reprojection review;
 - `identity_uncertain` labeling;
-- tracklet stitching;
-- dual-view 3D reconstruction;
-- social-status inference from body size, trajectory, and interaction direction.
+- trajectory post-processing;
+- future automatic QC.
 
-## Current Limitations
+## Limitations
 
-- `TOP_test_5min` is not a strict independent test set because some related frames have been used during model development.
+- `TOP_test_5min` is not a strict independent test set because related frames were used during model development.
 - V6+E2 still has manual ID switches.
-- Severe occlusion, close interactions, bubbles, and tank-wall reflections remain challenging.
-- Current results are suitable for short-term 2D trajectory extraction and method validation.
-- A strict independent temporal test set is still needed for final evaluation.
+- The current 3D result is a representative 30 s MVP segment, not a full-video production pipeline.
+- fish_1 / fish_2 / fish_3 are manually reviewed trajectory IDs, not externally marked biological identities.
+- Large-scale formal exposure analysis will require standardized acquisition, automatic QC, batch processing, and selective manual review of uncertain segments.
 
 ## Roadmap
 
 - [x] Build a `fish/reflection` two-class detection dataset
 - [x] Train and validate V5 / V6 YOLO26s models
 - [x] Compare V5+E2 and V6+E2 tracking performance
-- [ ] Record ID switch segments and build an error bank
-- [ ] Add `identity_uncertain` labels for crossing and occlusion events
-- [ ] Export standardized trajectory CSV files
-- [ ] Compute 2D behavior metrics such as speed, inter-individual distance, group center, and MND
-- [ ] Build V7 hard-sample training data from failure cases
-- [ ] Explore dual-view 3D trajectory reconstruction
-- [ ] Build social behavior metrics and graph-based group analysis
+- [x] Train TOP_v7 / LEFT_v1 scene-adapted detectors for dual-view videos
+- [x] Complete DLT calibration using tank structural points
+- [x] Complete TOP/LEFT synchronization offset search
+- [x] Complete 30 s / 30 Hz dual-view 3D trajectory MVP
+- [x] Complete final_manual_v1 identity correction and QC
+- [x] Extract pilot behavior metrics from final 3D trajectories
+- [ ] Build automatic QC and uncertain-segment detection
+- [ ] Extend the workflow to longer representative segments
+- [ ] Prepare graph-structured inputs for GCN-based group behavior modeling
+- [ ] Design standardized batch processing for formal exposure experiments
+
+## Project Status
+
+The project has progressed from 2D detection-model optimization to a complete technical chain:
+
+```text
+visual detection
+→ point extraction
+→ dual-view 3D reconstruction
+→ manual identity correction
+→ behavior metric extraction
+```
+
+The current `final_manual_v1` result is suitable for stage presentation, technical validation, pilot behavior metric extraction, and future GCN input preparation.
 
 ## Acknowledgements
 
